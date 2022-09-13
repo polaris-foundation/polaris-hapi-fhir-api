@@ -26,7 +26,7 @@ jobs:
     steps:
     - checkout
     - setup_remote_docker:
-        version: version: 20.10.7
+        version: 20.10.7
     - run:
         name: Add build information
         command: .circleci/record_build_info.sh
@@ -36,28 +36,28 @@ jobs:
     - run:
         name: Tag docker image
         command: |
-        docker tag polaris-hapi-fhir-api ghcr.io/polaris-foundation/polaris-hapi-fhir-api:latest
-        docker tag polaris-hapi-fhir-api ghcr.io/polaris-foundation/polaris-hapi-fhir-api:cb-${CIRCLE_BUILD_NUM}
-        docker tag polaris-hapi-fhir-api ghcr.io/polaris-foundation/polaris-hapi-fhir-api:$(git log --pretty=format:'%h' -n 1)
+          docker tag polaris-hapi-fhir-api ghcr.io/polaris-foundation/polaris-hapi-fhir-api:latest
+          docker tag polaris-hapi-fhir-api ghcr.io/polaris-foundation/polaris-hapi-fhir-api:cb-${CIRCLE_BUILD_NUM}
+          docker tag polaris-hapi-fhir-api ghcr.io/polaris-foundation/polaris-hapi-fhir-api:$(git log --pretty=format:'%h' -n 1)
     - run:
         name: Authenticate to GHCR
         command: echo $GHCR_TOKEN | docker login ghcr.io -u jonadaly --password-stdin
     - run:
         name: Push docker image
         command: |
-        docker push ghcr.io/polaris-foundation/polaris-hapi-fhir-api:latest
-        docker push ghcr.io/polaris-foundation/polaris-hapi-fhir-api:cb-${CIRCLE_BUILD_NUM}
-        docker push ghcr.io/polaris-foundation/polaris-hapi-fhir-api:$(git log --pretty=format:'%h' -n 1)
+          docker push ghcr.io/polaris-foundation/polaris-hapi-fhir-api:latest
+          docker push ghcr.io/polaris-foundation/polaris-hapi-fhir-api:cb-${CIRCLE_BUILD_NUM}
+          docker push ghcr.io/polaris-foundation/polaris-hapi-fhir-api:$(git log --pretty=format:'%h' -n 1)
 workflows:
   version: 2
   build_test_deploy:
     jobs:
-      - test:
+      - verify:
           context: polaris-foundation
       - deploy-dev:
           context: polaris-foundation
           requires:
-            - test
+            - verify
           filters:
             branches:
               only:
