@@ -1,0 +1,105 @@
+GCP_DOCKER_AUTH_MASTER:
+  auth:
+    username: _json_key
+    password: ${GOOGLE_AUTH}
+version: 2.1
+orbs:
+  azure-acr: circleci/azure-acr@0.1.4
+  ms-teams: cloudradar-monitoring/ms-teams@0.0.1
+  maven: circleci/maven@1.1
+jobs:
+
+  verify:
+    docker:
+    - image: circleci/openjdk:stretch
+    steps:
+    - checkout
+    - restore_cache:
+        keys:
+        - v1-maven-dependencies-{{ checksum "pom.xml" }}
+        - v1-maven-dependencies-
+    - run:
+        name: Verify and run HAPI FHIR integration tests
+        command: mvn clean verify -f "pom.xml"
+    - store_test_results:
+        path: target/failsafe-reports
+    - save_cache:
+        paths:
+        - ~/.m2
+        key: v1-maven-dependencies-{{ checksum "pom.xml" }}
+
+  sonarqube:
+    docker:
+    - image: circleci/openjdk:stretch
+    steps:
+    - checkout
+    - attach_workspace:
+        at: coverage-reports
+    - restore_cache:
+        keys:
+        - v1-maven-dependencies-{{ checksum "pom.xml" }}
+        - v1-maven-dependencies-
+    - restore_cache:
+        keys:
+        - v1-maven-sonar-{{ checksum "pom.xml" }}
+        - v1-maven-sonar-
+    - run:
+        name: Run sonarqube
+        command: .circleci/run_sonarqube.sh
+    - save_cache:
+        key: v1-maven-sonar-{{ checksum "pom.xml" }}
+        paths:
+        - .sonar/cache
+
+  deploy-dev:
+    docker:
+    - image: gcr.io/dhos-stack/circleci-build-image:latest
+      auth:
+        username: _json_key
+        password: ${GOOGLE_AUTH}
+    environment:
+      K8S_DEV_DEPLOYMENT_NAME: deployment/dhos-hapi-fhir-api-dep
+      ACR_REPO_BASE: dhos
+    steps:
+    - checkout
+    - setup_remote_docker
+    - run:
+        name: Add build information
+        command: .circleci/record_build_info.sh
+    - run:
+        name: Build image
+        command: docker build -t ${CIRCLE_PROJECT_REPONAME} .
+    - run:
+        name: Push image to GCR
+        command: .circleci/push_gcr.sh
+    - azure-acr/build-and-push-image:
+        checkout: false
+        login-server-name: ${AZURE_LOGIN_SERVER_NAME}
+        registry-name: ${AZURE_REGISTRY_NAME}
+        repo: ${ACR_REPO_BASE}/dhos-hapi-fhir-api
+        tag: dev,cb-${CIRCLE_BUILD_NUM},$(git log --pretty=format:'%h' -n 1)
+    - run:
+        name: Deploy to Azure dev environment
+        command: .circleci/deploy_azure_dev.sh
+    - ms-teams/report:
+        only_on_fail: true
+        webhook_url: ${MSTEAMS_NOTIFY_WEBHOOK_URL}
+
+workflows:
+  version: 2
+  build_test_deploy:
+    jobs:
+    - verify:
+        context: engineering-build
+    - sonarqube:
+        context: engineering-build
+        requires:
+        - verify
+    - deploy-dev:
+        context: dhos-deploy
+        requires:
+        - sonarqube
+        filters:
+          branches:
+            only:
+            - develop
