@@ -4,9 +4,9 @@
 
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/dhos-hapi-fhir-api
-    username: dhos-hapi-fhir-api
-    password: dhos-hapi-fhir-api
+    url: jdbc:postgresql://localhost:5432/polaris-hapi-fhir-api
+    username: polaris-hapi-fhir-api
+    password: polaris-hapi-fhir-api
     driverClassName: org.postgresql.Driver
     max-active: 15
   jpa:

@@ -24,6 +24,8 @@ CMD ["/app/main.war"]
 
 FROM tomcat:9.0.38-jdk11-openjdk-slim-buster
 
+LABEL org.opencontainers.image.source=https://github.com/polaris-foundation/polaris-hapi-fhir-api
+
 RUN mkdir -p /data/hapi/lucenefiles && chmod 775 /data/hapi/lucenefiles
 COPY --from=build-hapi /tmp/hapi-fhir-jpaserver-starter/target/*.war /usr/local/tomcat/webapps/
 
